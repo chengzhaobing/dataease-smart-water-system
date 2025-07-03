@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataEase智慧水务大数据可视化平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Orbitron', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* 动态背景粒子效果 */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
+            animation: bgMove 20s ease-in-out infinite;
+        }
+        
+        @keyframes bgMove {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+        
+        /* 顶部标题栏 */
+        .header {
+            background: linear-gradient(90deg, rgba(0, 150, 255, 0.2) 0%, rgba(0, 255, 150, 0.2) 100%);
+            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            padding: 15px 30px;
+            text-align: center;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(0, 255, 255, 0.1) 50%, transparent 100%);
+            animation: headerScan 3s linear infinite;
+        }
+        
+        @keyframes headerScan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .header h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 900;
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+        
+        .header p {
+            color: #a0a0ff;
+            font-size: 16px;
+            font-weight: 300;
+        }
+        
+        /* 主容器 */
+        .container {
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+        
+        /* 网格布局 */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+            height: calc(100vh - 120px);
+        }
+        
+        /* 卡片基础样式 */
+        .panel {
+            background: linear-gradient(135deg, rgba(15, 25, 50, 0.9) 0%, rgba(25, 35, 60, 0.9) 100%);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ffff, transparent);
+            animation: borderScan 2s linear infinite;
+        }
+        
+        @keyframes borderScan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        
+        /* 左侧面板 */
+        .left-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        /* 统计卡片 */
+        .stats-panel {
+            grid-row: span 1;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .stat-item {
+            background: linear-gradient(135deg, rgba(0, 100, 255, 0.2) 0%, rgba(0, 255, 150, 0.2) 100%);
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-item::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0% { width: 0; height: 0; opacity: 1; }
+            100% { width: 100px; height: 100px; opacity: 0; }
+        }
+        
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 900;
+            color: #00ff88;
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #a0a0ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* 中央3D地图区域 */
+        .map-panel {
+            grid-column: 2;
+            grid-row: 1 / -1;
+            position: relative;
+        }
+        
+        .map-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* 右侧面板 */
+        .right-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        /* 图表容器 */
+        .chart-container {
+            width: 100%;
+            height: 200px;
+        }
+        
+        .chart-container.large {
+            height: 300px;
+        }
+        
+        /* 系统状态面板 */
+        .status-grid {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: linear-gradient(90deg, rgba(0, 255, 0, 0.1) 0%, rgba(0, 255, 0, 0.05) 100%);
+            border-left: 3px solid #00ff00;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .status-icon {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+            margin-right: 10px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            animation: statusBlink 2s ease-in-out infinite;
+        }
+        
+        @keyframes statusBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        /* 数据流面板 */
+        .data-flow {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .data-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 3px;
+            background: rgba(0, 255, 255, 0.1);
+            border-left: 2px solid #00ffff;
+            animation: dataEntry 0.5s ease-in;
+        }
+        
+        @keyframes dataEntry {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .data-entry.warning {
+            background: rgba(255, 165, 0, 0.1);
+            border-left-color: #ffa500;
+        }
+        
+        .data-entry.error {
+            background: rgba(255, 0, 0, 0.1);
+            border-left-color: #ff0000;
+        }
+        
+        /* 控制按钮 */
+        .control-btn {
+            background: linear-gradient(135deg, #0066ff 0%, #00ccff 100%);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+            margin: 10px 5px;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(0, 102, 255, 0.5);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+            }
+            
+            .map-panel {
+                grid-column: 1;
+                grid-row: auto;
+                height: 400px;
+            }
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #00ffff 0%, #0066ff 100%);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #00ccff 0%, #0088ff 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <div class="header">
+        <h1>🌊 DATAEASE 智慧水务大数据可视化平台</h1>
+        <p>实时监控 · 智能分析 · 预警预测 · 优化调度</p>
+        <button class="control-btn" onclick="refreshData()">🔄 实时刷新</button>
+        <button class="control-btn" onclick="toggleFullscreen()">🖥️ 全屏模式</button>
+    </div>
+    
+    <div class="container">
+        <div class="dashboard-grid">
+            <!-- 左侧面板 -->
+            <div class="left-panels">
+                <!-- 核心指标 -->
+                <div class="panel stats-panel">
+                    <div class="panel-title">🎯 核心运营指标</div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalSensors">1,247</div>
+                            <div class="stat-label">传感器总数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="activeAlerts">23</div>
+                            <div class="stat-label">活跃告警</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="dataQuality">98.7%</div>
+                            <div class="stat-label">数据质量</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="systemHealth">99.2%</div>
+                            <div class="stat-label">系统健康度</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 水质监测 -->
+                <div class="panel">
+                    <div class="panel-title">🌡️ 水质实时监测</div>
+                    <div id="waterQualityChart" class="chart-container"></div>
+                </div>
+                
+                <!-- 系统状态 -->
+                <div class="panel">
+                    <div class="panel-title">⚙️ 系统运行状态</div>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-icon"></div>
+                            <span>MQTT数据采集 - 正常运行</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon"></div>
+                            <span>GIS空间分析 - 正常运行</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon"></div>
+                            <span>CDC数据同步 - 正常运行</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon"></div>
+                            <span>AI异常检测 - 正常运行</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon"></div>
+                            <span>数据流水线 - 正常运行</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 中央3D地图 -->
+            <div class="panel map-panel">
+                <div class="panel-title">🗺️ 智慧水务3D态势感知</div>
+                <div class="map-container">
+                    <div id="map3d" class="chart-container large" style="height: calc(100% - 60px);"></div>
+                </div>
+            </div>
+            
+            <!-- 右侧面板 -->
+            <div class="right-panels">
+                <!-- 流量趋势 -->
+                <div class="panel">
+                    <div class="panel-title">📊 流量压力趋势</div>
+                    <div id="flowChart" class="chart-container"></div>
+                </div>
+                
+                <!-- 异常分析 -->
+                <div class="panel">
+                    <div class="panel-title">⚠️ 异常事件分析</div>
+                    <div id="anomalyChart" class="chart-container"></div>
+                </div>
+                
+                <!-- 实时数据流 -->
+                <div class="panel">
+                    <div class="panel-title">📡 实时数据流</div>
+                    <div class="data-flow" id="dataFlow">
+                        <div class="data-entry">[10:30:15] 传感器SN001 - 压力: 85.2kPa, 流量: 125.6L/min</div>
+                        <div class="data-entry">[10:30:16] 传感器SN002 - 压力: 78.9kPa, 流量: 98.3L/min</div>
+                        <div class="data-entry warning">[10:30:17] 告警: SN003压力异常 - 当前值: 95.8kPa</div>
+                        <div class="data-entry">[10:30:18] GIS分析完成 - 发现3个空间关联要素</div>
+                        <div class="data-entry">[10:30:19] CDC同步: 工单WO12345状态更新</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let charts = {};
+        let dataUpdateInterval;
+        
+        // 初始化所有图表
+        function initCharts() {
+            console.log('开始初始化图表...');
+            
+            // 确保charts对象存在
+            if (typeof window.charts === 'undefined') {
+                window.charts = {};
+                console.log('创建charts对象');
+            }
+            
+            // 3D地图
+            init3DMap();
+            console.log('3D地图初始化完成');
+            
+            // 水质监测图表
+            initWaterQualityChart();
+            
+            // 流量趋势图表
+            initFlowChart();
+            
+            // 异常分析图表
+            initAnomalyChart();
+            
+            console.log('所有图表初始化完成，charts对象包含:', Object.keys(window.charts));
+        }
+        
+        // 初始化3D地图
+        function init3DMap() {
+            const map3d = echarts.init(document.getElementById('map3d'));
+            window.charts.map3d = map3d; // 保存地图实例
+            console.log('3D地图实例已保存到charts.map3d');
+            
+            const option = {
+                backgroundColor: 'transparent',
+                globe: {
+                    baseTexture: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512">
+                            <defs>
+                                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <rect width="1024" height="512" fill="url(#grad1)"/>
+                        </svg>
+                    `),
+                    heightTexture: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512">
+                            <rect width="1024" height="512" fill="#000000"/>
+                        </svg>
+                    `),
+                    displacementScale: 0.1,
+                    shading: 'realistic',
+                    realisticMaterial: {
+                        roughness: 0.8,
+                        metalness: 0
+                    },
+                    postEffect: {
+                        enable: true,
+                        bloom: {
+                            enable: true,
+                            intensity: 0.1
+                        },
+                        SSAO: {
+                            enable: true,
+                            radius: 2,
+                            intensity: 1,
+                            quality: 'medium'
+                        }
+                    },
+                    light: {
+                        main: {
+                            intensity: 2,
+                            shadow: true
+                        },
+                        ambient: {
+                            intensity: 0.1
+                        }
+                    },
+                    viewControl: {
+                        autoRotate: true,
+                        autoRotateSpeed: 1
+                    },
+                    environment: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1" height="1">
+                            <rect width="1" height="1" fill="#000011"/>
+                        </svg>
+                    `)
+                },
+                series: [{
+                    type: 'scatter3D',
+                    coordinateSystem: 'globe',
+                    blendMode: 'lighter',
+                    symbolSize: 12,
+                    itemStyle: {
+                        color: function(params) {
+                            // 根据站点状态设置颜色
+                            const status = params.data[3]; // 状态信息在第4个位置
+                            return status === '正常' ? '#00ff88' : '#ff6600';
+                        },
+                        opacity: 0.9
+                    },
+                    data: [] // 将通过API动态加载
+                }, {
+                    type: 'lines3D',
+                    coordinateSystem: 'globe',
+                    blendMode: 'lighter',
+                    effect: {
+                        show: true,
+                        trailWidth: 2,
+                        trailLength: 0.15,
+                        trailOpacity: 1,
+                        trailColor: '#00ff88'
+                    },
+                    lineStyle: {
+                        width: 1,
+                        color: '#00ffff',
+                        opacity: 0.6
+                    },
+                    data: [] // 将根据站点数据动态生成连线
+                }]
+            };
+            
+            map3d.setOption(option);
+            charts.map3d = map3d;
+            
+            // 加载监测站点数据
+            loadMonitoringStations();
+        }
+        
+        // 加载监测站点数据
+        function loadMonitoringStations() {
+            console.log('开始加载监测站点数据...');
+            
+            // 由于CORS限制，直接使用模拟数据
+            const simulatedStations = [
+                { station_id: 'WS001', station_name: '长江取水口监测站', latitude: 30.5844, longitude: 114.2979, status: '正常', type: '取水口' },
+                { station_id: 'WS002', station_name: '黄浦江水质监测站', latitude: 31.2304, longitude: 121.4737, status: '正常', type: '水质监测' },
+                { station_id: 'WS003', station_name: '珠江口污染监测站', latitude: 23.1291, longitude: 113.2644, status: '维护中', type: '污染监测' },
+                { station_id: 'WS004', station_name: '渤海湾水质检测站', latitude: 39.0842, longitude: 117.2008, status: '正常', type: '海水监测' },
+                { station_id: 'WS005', station_name: '太湖流域监测站', latitude: 31.4, longitude: 120.3, status: '正常', type: '流域监测' }
+            ];
+            
+            console.log('使用模拟监测站点数据:', simulatedStations);
+            updateMapWithStations(simulatedStations);
+            
+            // 尝试从API获取真实数据（可能因CORS失败）
+            fetch('http://localhost:8081/api/monitoring-stations')
+                .then(response => {
+                    console.log('API响应状态:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API返回数据:', data);
+                    if (data.success && data.data) {
+                        updateMapWithStations(data.data);
+                        console.log(`成功从API加载 ${data.data.length} 个监测站点`);
+                    } else {
+                        console.error('API数据格式错误:', data.error || '未知错误');
+                    }
+                })
+                .catch(error => {
+                    console.warn('API请求失败，使用模拟数据:', error.message);
+                    // 已经使用了模拟数据，无需再次设置
+                });
+        }
+        
+        // 更新地图上的监测站点
+        function updateMapWithStations(stations) {
+            const map3d = window.charts && window.charts.map3d;
+            if (!map3d) {
+                console.error('3D地图未初始化，charts对象状态:', window.charts);
+                return;
+            }
+            console.log('开始更新地图，站点数量:', stations.length);
+            
+            const option = map3d.getOption();
+            
+            // 转换站点数据为地图坐标格式
+            const scatterData = stations.map(station => [
+                station.longitude,
+                station.latitude,
+                1, // 高度
+                station.status, // 状态信息
+                station.station_name // 站点名称
+            ]);
+            
+            // 生成站点间的连线数据
+            const lineData = [];
+            for (let i = 0; i < stations.length - 1; i++) {
+                const current = stations[i];
+                const next = stations[i + 1];
+                lineData.push([
+                    [current.longitude, current.latitude, 1],
+                    [next.longitude, next.latitude, 1]
+                ]);
+            }
+            
+            // 更新散点数据
+            option.series[0].data = scatterData;
+            // 更新连线数据
+            option.series[1].data = lineData;
+            
+            map3d.setOption(option);
+            console.log('地图数据更新完成，显示', scatterData.length, '个站点');
+        }
+        
+        // 初始化水质监测图表
+        function initWaterQualityChart() {
+            const chart = echarts.init(document.getElementById('waterQualityChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    borderColor: '#00ffff',
+                    textStyle: { color: '#ffffff' }
+                },
+                legend: {
+                    data: ['pH值', '浊度', '余氯'],
+                    textStyle: { color: '#ffffff' },
+                    top: 10
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%',
+                    top: '25%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: [],
+                    axisLine: { lineStyle: { color: '#00ffff' } },
+                    axisLabel: { color: '#ffffff' }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { lineStyle: { color: '#00ffff' } },
+                    axisLabel: { color: '#ffffff' },
+                    splitLine: { lineStyle: { color: 'rgba(0, 255, 255, 0.2)' } }
+                },
+                series: [
+                    {
+                        name: 'pH值',
+                        type: 'line',
+                        smooth: true,
+                        data: [],
+                        itemStyle: { color: '#00ff88' },
+                        areaStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(0, 255, 136, 0.3)' },
+                                    { offset: 1, color: 'rgba(0, 255, 136, 0.1)' }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        name: '浊度',
+                        type: 'line',
+                        smooth: true,
+                        data: [],
+                        itemStyle: { color: '#ffaa00' }
+                    },
+                    {
+                        name: '余氯',
+                        type: 'line',
+                        smooth: true,
+                        data: [],
+                        itemStyle: { color: '#ff6600' }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            charts.waterQuality = chart;
+        }
+        
+        // 初始化流量图表
+        function initFlowChart() {
+            const chart = echarts.init(document.getElementById('flowChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    borderColor: '#00ffff',
+                    textStyle: { color: '#ffffff' }
+                },
+                legend: {
+                    data: ['流量', '压力'],
+                    textStyle: { color: '#ffffff' },
+                    top: 10
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%',
+                    top: '25%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: [],
+                    axisLine: { lineStyle: { color: '#00ffff' } },
+                    axisLabel: { color: '#ffffff' }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '流量(L/min)',
+                        axisLine: { lineStyle: { color: '#00ffff' } },
+                        axisLabel: { color: '#ffffff' },
+                        splitLine: { lineStyle: { color: 'rgba(0, 255, 255, 0.2)' } }
+                    },
+                    {
+                        type: 'value',
+                        name: '压力(kPa)',
+                        axisLine: { lineStyle: { color: '#ff6600' } },
+                        axisLabel: { color: '#ffffff' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '流量',
+                        type: 'bar',
+                        data: [],
+                        itemStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: '#00ffff' },
+                                    { offset: 1, color: '#0066ff' }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        name: '压力',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        data: [],
+                        itemStyle: { color: '#ff6600' },
+                        lineStyle: { width: 3 }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            charts.flow = chart;
+        }
+        
+        // 初始化异常分析图表
+        function initAnomalyChart() {
+            const chart = echarts.init(document.getElementById('anomalyChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    borderColor: '#00ffff',
+                    textStyle: { color: '#ffffff' }
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    textStyle: { color: '#ffffff' }
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['60%', '50%'],
+                        data: [
+                            { value: 35, name: '压力异常', itemStyle: { color: '#ff4444' } },
+                            { value: 25, name: '流量异常', itemStyle: { color: '#ffaa00' } },
+                            { value: 20, name: '水质异常', itemStyle: { color: '#aa44ff' } },
+                            { value: 15, name: '设备故障', itemStyle: { color: '#44aaff' } },
+                            { value: 5, name: '通信异常', itemStyle: { color: '#44ff88' } }
+                        ],
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                                shadowColor: 'rgba(0, 255, 255, 0.5)'
+                            }
+                        },
+                        label: {
+                            color: '#ffffff'
+                        }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            charts.anomaly = chart;
+        }
+        
+        // 更新数据
+        function updateData() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            
+            // 更新统计数据
+            document.getElementById('totalSensors').textContent = (1247 + Math.floor(Math.random() * 10)).toLocaleString();
+            document.getElementById('activeAlerts').textContent = Math.floor(Math.random() * 30) + 15;
+            document.getElementById('dataQuality').textContent = (98 + Math.random() * 2).toFixed(1) + '%';
+            document.getElementById('systemHealth').textContent = (99 + Math.random()).toFixed(1) + '%';
+            
+            // 更新水质图表
+            updateWaterQualityChart(timeStr);
+            
+            // 更新流量图表
+            updateFlowChart(timeStr);
+            
+            // 更新数据流
+            updateDataFlow();
+        }
+        
+        // 更新水质图表
+        function updateWaterQualityChart(timeStr) {
+            const chart = charts.waterQuality;
+            const option = chart.getOption();
+            
+            option.xAxis[0].data.push(timeStr);
+            option.series[0].data.push((6.5 + Math.random() * 2).toFixed(1)); // pH
+            option.series[1].data.push((1 + Math.random() * 4).toFixed(1)); // 浊度
+            option.series[2].data.push((0.3 + Math.random() * 0.4).toFixed(2)); // 余氯
+            
+            // 保持最多15个数据点
+            if (option.xAxis[0].data.length > 15) {
+                option.xAxis[0].data.shift();
+                option.series.forEach(series => series.data.shift());
+            }
+            
+            chart.setOption(option);
+        }
+        
+        // 更新流量图表
+        function updateFlowChart(timeStr) {
+            const chart = charts.flow;
+            const option = chart.getOption();
+            
+            option.xAxis[0].data.push(timeStr);
+            option.series[0].data.push(Math.floor(80 + Math.random() * 60)); // 流量
+            option.series[1].data.push((70 + Math.random() * 30).toFixed(1)); // 压力
+            
+            // 保持最多10个数据点
+            if (option.xAxis[0].data.length > 10) {
+                option.xAxis[0].data.shift();
+                option.series.forEach(series => series.data.shift());
+            }
+            
+            chart.setOption(option);
+        }
+        
+        // 更新数据流
+        function updateDataFlow() {
+            const dataFlow = document.getElementById('dataFlow');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            
+            const messages = [
+                `传感器SN${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')} - 压力: ${(70 + Math.random() * 30).toFixed(1)}kPa, 流量: ${(80 + Math.random() * 60).toFixed(1)}L/min`,
+                `GIS空间分析完成 - 发现${Math.floor(Math.random() * 8) + 1}个关联要素`,
+                `CDC数据同步: 工单WO${Math.floor(Math.random() * 90000) + 10000}状态更新`,
+                `AI模型预测: 未来1小时流量趋势${Math.random() > 0.5 ? '上升' : '下降'}`,
+                `数据质量检查: ${Math.floor(Math.random() * 1000) + 500}条记录验证通过`
+            ];
+            
+            const entry = document.createElement('div');
+            entry.className = 'data-entry';
+            
+            if (Math.random() > 0.8) {
+                entry.className += ' warning';
+                entry.textContent = `[${timeStr}] 告警: SN${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}${Math.random() > 0.5 ? '压力' : '流量'}异常 - 当前值: ${(Math.random() * 50 + 50).toFixed(1)}`;
+            } else {
+                entry.textContent = `[${timeStr}] ${messages[Math.floor(Math.random() * messages.length)]}`;
+            }
+            
+            dataFlow.appendChild(entry);
+            dataFlow.scrollTop = dataFlow.scrollHeight;
+            
+            // 保持最多20条记录
+            while (dataFlow.children.length > 20) {
+                dataFlow.removeChild(dataFlow.firstChild);
+            }
+        }
+        
+        // 刷新数据
+        function refreshData() {
+            updateData();
+        }
+        
+        // 全屏模式
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // 页面加载完成后初始化
+        window.onload = function() {
+            initCharts();
+            
+            // 加载监测站点数据
+            setTimeout(() => {
+                loadMonitoringStations();
+            }, 1000);
+            
+            // 定时更新数据
+            dataUpdateInterval = setInterval(updateData, 3000);
+            
+            // 初始数据
+            updateData();
+        };
+        
+        // 响应式图表
+        window.onresize = function() {
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.resize) {
+                    chart.resize();
+                }
+            });
+        };
+        
+        // 页面卸载时清理定时器
+        window.onbeforeunload = function() {
+            if (dataUpdateInterval) {
+                clearInterval(dataUpdateInterval);
+            }
+        };
+    </script>
+</body>
+</html>
